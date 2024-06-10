@@ -16,6 +16,7 @@ from googletrans import Translator
 # List to store the extracted video names
 videoenames = []
 
+
 # Create a lock object to ensure only one thread writes to the file at a time
 file_lock = threading.Lock()
 
@@ -82,9 +83,11 @@ def download_video(url):
         yt = YouTube(url)
         stream = yt.streams.filter(progressive=True, file_extension='mp4').first()
         filename = stream.download(output_path=download_directory)
+        logger.info(f'{url} downloaded to {filename}', extra={'url': url})
         print(f'{url} downloaded.')
         extract_audio(filename, audio_directory)
     except Exception as e:
+        logger.error(f'Error downloading {url}: {e}', extra={'url': url})
         print(f'Error downloading {url}: {e}')
 
 def serial_downloader(video_urls):
@@ -148,9 +151,11 @@ def extract_audio(video_path, audio_directory):
         audio_filename = video_path_obj.stem + '.wav'
         audio_path = Path(audio_directory) / audio_filename
         video.audio.write_audiofile(str(audio_path))
+        logger.info(f"Audio extracted and saved to {audio_path}", extra={'url': video_path})
         print(f"Audio extracted and saved to {audio_path}")
         return audio_path
     except Exception as e:
+        logger.error(f"Failed to extract audio from {video_path}: {e}", extra={'url': video_path})
         print(f"Failed to extract audio from {video_path}: {e}")
         return None
     finally:
@@ -164,6 +169,7 @@ def audio_to_text(audio_path, text_directory):
         with sr.AudioFile(str(audio_path)) as source:
             audio = recognizer.record(source)
         text = recognizer.recognize_google(audio)
+        logger.info(f"Audio from {audio_path} transcribed successfully", extra={'url': audio_path})
         print(f"Recognized text: {text}")
         # Perform the sentiment analysis on a video's content, extracting its polarity and sensitivity.
         sent_analysis(text)
@@ -171,9 +177,11 @@ def audio_to_text(audio_path, text_directory):
         emotion(text)
 
     except sr.UnknownValueError:
+        logger.warning(f"Speech Recognition could not understand audio in {audio_path}", extra={'url': audio_path})
         print(f"Speech Recognition could not understand audio in {audio_path}")
         text = ""
     except sr.RequestError as e:
+        logger.error(f"Request error for: {e}", extra={'url': audio_path})
         print(f"Request error for: {e}")
         text = ""
     except Exception as e:
@@ -187,8 +195,10 @@ def audio_to_text(audio_path, text_directory):
     try:
         with open(text_path, 'w', encoding='utf-8') as text_file:
             text_file.write(text)
+        logger.info(f"Text converted and saved to {text_path}", extra={'url': audio_path})
         print(f"Text converted and saved to {text_path}")
     except Exception as e:
+        logger.error(f"Failed to save text file {text_path}: {e}", extra={'url': audio_path})
         print(f"Failed to save text file {text_path}: {e}")
 
 def sent_analysis(text):
@@ -208,6 +218,7 @@ def translator(text):
         print(f'{text} was translated in Italian as follows: {blob_translated}')
     except Exception as e:
         print(f"The text could not be translated. An error occurred: {e}")
+        
 
 def emotion(text):
     nlp = spacy.load('en_core_web_sm')

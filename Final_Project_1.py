@@ -8,6 +8,10 @@ from pytube import YouTube
 from moviepy.editor import VideoFileClip
 from pathlib import Path
 import speech_recognition as sr
+from textblob import TextBlob
+import spacy,nltk
+from nrclex import NRCLex
+from googletrans import Translator
 
 # List to store the extracted video names
 videoenames = []
@@ -161,6 +165,11 @@ def audio_to_text(audio_path, text_directory):
             audio = recognizer.record(source)
         text = recognizer.recognize_google(audio)
         print(f"Recognized text: {text}")
+        # Perform the sentiment analysis on a video's content, extracting its polarity and sensitivity.
+        sent_analysis(text)
+        translator(text)
+        emotion(text)
+
     except sr.UnknownValueError:
         print(f"Speech Recognition could not understand audio in {audio_path}")
         text = ""
@@ -181,6 +190,34 @@ def audio_to_text(audio_path, text_directory):
         print(f"Text converted and saved to {text_path}")
     except Exception as e:
         print(f"Failed to save text file {text_path}: {e}")
+
+def sent_analysis(text):
+    blob = TextBlob(text)
+    try: 
+        polarity = blob.sentiment.polarity
+        subjectivity = blob.sentiment.subjectivity
+        print('Sentiment extracted from', text, 'resulted in', polarity, 'for polarity and', subjectivity, 'for subjectivity')
+    except Exception as e:
+        print(f"The text could not be extracted. An error occured: {e}")
+
+def translator(text):
+    try:
+        blob = TextBlob(text)
+        translator = Translator()
+        blob_translated = translator.translate(text, src='en', dest='it').text
+        print(f'{text} was translated in Italian as follows: {blob_translated}')
+    except Exception as e:
+        print(f"The text could not be translated. An error occurred: {e}")
+        
+
+def emotion(text):
+    nlp = spacy.load('en_core_web_sm')
+    nltk.download('punkt')
+    doc = nlp(text)
+    full_text = ' '.join([sent.text for sent in doc.sents])
+    emotion = NRCLex(text)
+    print("Detected Emotions and Frequencies:")
+    print(emotion.affect_frequencies)
 
 if __name__ == '__main__':
     urls_YouTube = [
@@ -212,6 +249,7 @@ if __name__ == '__main__':
     # Transcribe audio to text after all downloads and audio extractions
     for audio_file in Path(audio_directory).glob('*.wav'):
         audio_to_text(audio_file, text_directory)
+    
 
 
 
